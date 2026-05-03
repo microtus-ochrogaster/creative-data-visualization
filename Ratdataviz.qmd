@@ -1,0 +1,101 @@
+---
+title: "DataViz"
+format: html
+---
+
+## Animated NYC Rat Heatmap
+
+Using data from Transit, a crowd-sourced NYC app, we will create an animated map of some of the smallest (and probably the nicest) New Yorkers: rats! 
+We will be looking at reports from April 2 - May 2, 2026. 
+The app has separated the rat sightings into 3 categories, which we will keep:
+*none:* stations where there were no reported rats
+*one or two:* stations were 1 or 2 rats were sighted, and 
+*so many:* stations with a lot of rodent sightings.
+
+We will be using this app  data to create a heatmap showing rodent activity of 20 subway stations.
+
+First, let's select our needed libraries, load our dataset, and take a peek at our data. 
+
+```{r}
+library(tidyverse)
+library(gganimate)
+library(viridis)
+
+
+rats <- read_csv("transitappratreports.csv")
+
+cat("Raw data dimensions:", nrow(rats), "rows ×", ncol(rats), "columns\n")
+cat("\nFirst few rows:\n")
+print(head(rats))
+
+```
+
+Next let's clean up the data, select the top 20 stations, and then modify our data in into a format that would look better as a heat map 
+```{r}
+top20 <- rats |>
+  mutate(total = so_many + one_or_two + none) |>
+  slice_max(total, n = 20) |>
+  pull(station_name)
+
+data_long <- rats |>
+  filter(station_name %in% top20) |>
+  pivot_longer(
+    cols = c(so_many, one_or_two, none),
+    names_to = "activity_level",
+    values_to = "count"
+  ) |>
+  select(station_name, activity_level, count) |>
+  mutate(activity_level = factor(activity_level, levels = c("none", "one_or_two", "so_many"))) |>
+  arrange(activity_level, station_name)
+```
+Next, generate the heatmap. The x axis of the heatmap will show our 3 categories (none, 1-2 rats, and soo many rats). The y axis lists the top 20 rat-tastic subway stations.
+A dark purple color indicates there are few rat reports, and a yellow color is indicative of high rodent sightings. 
+```{r}
+ratmap <- ggplot(data_long, aes(x = activity_level, y = station_name, fill = count)) +
+  geom_tile(color = "grey20", size = 0.3) +
+  scale_fill_viridis_c(option = "inferno", name = "Reports", na.value = "white") +
+  scale_x_discrete(labels = c("none" = "No Rats", "one_or_two" = "1-2 Rats", "so_many" = "Many Rats")) +
+  labs(
+    title = "NYC Subway Station Rat Reports",
+    x = "Activity Level",
+    y = "Subway Station Name"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid = element_blank(), axis.text.y = element_text(size = 8),
+        plot.title = element_text(size = 14, face = "bold"))
+
+print(ratmap) 
+```
+
+Next, use gganimate to create a more dynamic heatmap. We will see a loop of the severity levels to see which stations are consistently popular among rodent New Yorkers. 
+```{r}
+animated <- ggplot(data_long, aes(x = activity_level, y = station_name, fill = count)) +
+  geom_tile(color = "grey20", size = 0.3) +
+  scale_fill_viridis_c(
+    option = "inferno",
+    name = "Reports",
+    na.value = "white"
+  ) +
+  scale_x_discrete(
+    labels = c("none" = "No Rats", "one_or_two" = "1-2 Rats", "so_many" = "Many Rats")
+  ) +
+  labs(
+    title = "NYC Subway Station Rat Reports",
+    x = "Rat Activity Level",
+    y = "Subway Station Name"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.y = element_text(size = 8),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  transition_states(activity_level, transition_length = 1, state_length = 3, wrap = TRUE) +
+  ease_aes("linear")
+```
+
+The moment of truth.......rendering and saving the animated heatmap into a GIF that goes through the 3 cycles every 3 seconds.  
+```{r}
+print(animated)
+```
+Cong*RATS*! We have now made an animated rat-tastic heatmap of 20 New York stations! 
