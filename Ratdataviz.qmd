@@ -20,6 +20,7 @@ First, let's select our needed libraries, load our dataset, and take a peek at o
 library(tidyverse)
 library(gganimate)
 library(viridis)
+library(magick)
 
 
 rats <- read_csv("transitappratreports.csv")
